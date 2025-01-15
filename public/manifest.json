@@ -1,0 +1,9 @@
+{
+  "name": "ShipOneDay",
+  "short_name": "ShipOneDay",
+  "description": "Code Less, Ship More",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6"
+}

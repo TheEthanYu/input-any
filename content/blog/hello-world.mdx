@@ -1,0 +1,168 @@
+---
+title: 'Getting Started with ShipOneDay'
+date: '2024-12-10'
+description: 'A comprehensive guide to using ShipOneDay and its features for building modern web applications.'
+category: 'Guide'
+cover: '/images/default-cover.jpg'
+---
+
+<Callout type="info">
+  Welcome to ShipOneDay! This guide will help you understand our platform and
+  get started with building your next project.
+</Callout>
+
+## What is ShipOneDay?
+
+ShipOneDay is a modern development toolkit that helps developers and startups launch products faster. We provide:
+
+- Production-ready components and templates
+- Pre-configured authentication and payments
+- Email system with transactional templates
+- SEO optimization out of the box
+
+## Quick Start Guide
+
+### 1. Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/shiponeday-starter
+cd shiponeday-starter
+
+# Install dependencies
+pnpm install
+```
+
+### 2. Configuration
+
+<Callout type="warning">
+  Make sure to set up your environment variables before starting the development
+  server.
+</Callout>
+
+Create a `.env` file in your project root:
+
+```bash
+# Authentication
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-key
+
+# Email
+RESEND_API_KEY=your-resend-key
+
+# Payment
+LEMONSQUEEZY_API_KEY=your-lemonsqueezy-key
+```
+
+### 3. Core Features
+
+#### Authentication
+
+Our authentication system includes:
+
+- Social login (Google, GitHub)
+- Magic link authentication
+- Role-based access control
+- Protected routes
+
+#### Email System
+
+<Callout type="success">
+  Our email system is powered by Resend, offering 99% delivery rates and
+  React-based templates.
+</Callout>
+
+- Transactional email templates
+- Custom email domains
+- Email analytics
+- Automated workflows
+
+#### Payment Integration
+
+- Subscription management
+- One-time payments
+- Invoice generation
+- Tax handling
+
+## Best Practices
+
+### Code Organization
+
+```typescript
+// Example of recommended file structure
+src/
+  ├── components/
+  │   ├── common/
+  │   ├── layout/
+  │   └── features/
+  ├── lib/
+  ├── hooks/
+  └── pages/
+```
+
+### Performance Optimization
+
+<Callout type="info">
+  ShipOneDay comes with built-in performance optimizations, but here are some
+  additional tips:
+</Callout>
+
+1. Use Image component for optimized images
+2. Implement lazy loading for heavy components
+3. Utilize edge caching when possible
+
+## Common Patterns
+
+### Data Fetching
+
+```typescript
+// Example of data fetching with error handling
+async function fetchData() {
+  try {
+    const response = await fetch('/api/data')
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error fetching data:', error)
+    throw error
+  }
+}
+```
+
+### Component Composition
+
+```typescript
+// Example of component composition
+function FeatureCard({ title, description, icon }) {
+  return (
+    <div className="p-6 border rounded-lg">
+      {icon}
+      <h3 className="text-lg font-bold">{title}</h3>
+      <p className="text-gray-600">{description}</p>
+    </div>
+  )
+}
+```
+
+## Next Steps
+
+<Callout type="success">
+  Now that you're familiar with the basics, here are some next steps to explore:
+</Callout>
+
+1. Check out our [component library](/docs/components)
+2. Learn about [authentication](/docs/auth)
+3. Explore [payment integration](/docs/payments)
+4. Join our [Discord community](https://discord.gg/shiponeday)
+
+## Need Help?
+
+- 📚 [Documentation](/docs)
+- 💬 [Discord Community](https://discord.gg/shiponeday)
+- 📧 [Email Support](mailto:support@shiponeday.com)
+- 🐙 [GitHub Issues](https://github.com/shiponeday/issues)
+
+<Callout type="warning">
+  Remember to check our documentation first before reaching out for support.
+  Most common issues are already covered there.
+</Callout>
