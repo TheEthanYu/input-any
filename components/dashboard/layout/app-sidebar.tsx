@@ -90,11 +90,6 @@ export function AppSidebar() {
       isActive: true,
     },
     {
-      title: 'Persona',
-      url: '/dashboard/persona',
-      icon: UserSquare2,
-    },
-    {
       title: 'Products',
       url: '/dashboard/products',
       icon: Package,
