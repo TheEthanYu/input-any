@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import config from '@/config'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function Login() {
   const router = useRouter()
@@ -41,6 +41,10 @@ export default function Login() {
     checkAuth()
   }, [supabase.auth, router])
 
+  // 检查是否是扩展登录
+  const searchParams = useSearchParams()
+  const isExtension = searchParams.get('source') === 'extension'
+
   const handleSignup = async (
     e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>,
     options: {
@@ -53,7 +57,10 @@ export default function Login() {
 
     try {
       const { type, provider } = options
-      const redirectURL = window.location.origin + '/api/auth/callback'
+      // 根据来源选择不同的回调URL
+      const redirectURL = isExtension
+        ? window.location.origin + '/api/auth/extension-callback'
+        : window.location.origin + '/api/auth/callback'
 
       if (type === 'oauth' && provider) {
         await supabase.auth.signInWithOAuth({
@@ -69,7 +76,6 @@ export default function Login() {
             emailRedirectTo: redirectURL,
           },
         })
-
         toast.success('Magic link sent! Check your email')
         setIsDisabled(true)
       }

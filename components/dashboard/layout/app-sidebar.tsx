@@ -20,6 +20,11 @@ import {
   CircleGauge,
   LifeBuoy,
   Rocket,
+  UserCircle,
+  Package,
+  Twitter,
+  BotMessageSquare,
+  UserSquare2,
 } from 'lucide-react'
 
 export function AppSidebar() {
@@ -83,6 +88,26 @@ export function AppSidebar() {
       url: '/dashboard',
       icon: CircleGauge,
       isActive: true,
+    },
+    {
+      title: 'Persona',
+      url: '/dashboard/persona',
+      icon: UserSquare2,
+    },
+    {
+      title: 'Products',
+      url: '/dashboard/products',
+      icon: Package,
+    },
+    {
+      title: 'X Assistant',
+      url: '/dashboard/x-assistant',
+      icon: Twitter,
+    },
+    {
+      title: 'Reddit Assistant',
+      url: '/dashboard/reddit-assistant',
+      icon: BotMessageSquare,
     },
     {
       title: 'Support',

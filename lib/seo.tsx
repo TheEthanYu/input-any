@@ -19,7 +19,7 @@ export const getSEOTags = ({
 } = {}) => {
   const baseUrl =
     process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000'
+      ? 'http://127.0.0.1:3000'
       : `https://${config.domainName}`
 
   return {
