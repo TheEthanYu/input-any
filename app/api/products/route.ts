@@ -4,9 +4,10 @@ import { NextResponse } from 'next/server'
 
 // GET: 获取产品列表
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies })
-
   try {
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
     const { data: products, error } = await supabase
       .from('products')
       .select('*')
@@ -26,9 +27,10 @@ export async function GET() {
 
 // POST: 创建新产品
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
-
   try {
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
     const json = await request.json()
     const {
       data: { user },
@@ -57,9 +59,10 @@ export async function POST(request: Request) {
 
 // PUT: 更新产品
 export async function PUT(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
-
   try {
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
     const json = await request.json()
     const { id, ...updates } = json
 
@@ -82,18 +85,20 @@ export async function PUT(request: Request) {
 
 // DELETE: 删除产品
 export async function DELETE(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
-  const url = new URL(request.url)
-  const id = url.searchParams.get('id')
-
-  if (!id) {
-    return NextResponse.json(
-      { error: 'Product ID is required' },
-      { status: 400 }
-    )
-  }
-
   try {
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      )
+    }
+
     const { error } = await supabase.from('products').delete().eq('id', id)
 
     if (error) throw error

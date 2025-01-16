@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Plus } from 'lucide-react'
+import { Plus, ExternalLink, Pencil, Trash2, Power } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -26,6 +24,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 
 interface Product {
   id: string
@@ -33,6 +33,7 @@ interface Product {
   description: string
   url: string
   image_url?: string
+  is_active: boolean
   user_id: string
   created_at: string
 }
@@ -42,7 +43,6 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const supabase = createClientComponentClient()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -122,6 +122,26 @@ export default function ProductsPage() {
     }
   }
 
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/products/${id}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: !currentStatus }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update status')
+
+      toast.success(currentStatus ? '已停止营销' : '已开启营销')
+      loadProducts()
+    } catch (error) {
+      console.error('Error toggling status:', error)
+      toast.error('状态更新失败，请重试')
+    }
+  }
+
   useEffect(() => {
     loadProducts()
   }, [])
@@ -129,7 +149,12 @@ export default function ProductsPage() {
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">产品管理</h1>
+        <div>
+          <h1 className="text-3xl font-bold">产品管理</h1>
+          <p className="text-muted-foreground mt-2">
+            管理你的产品信息和营销状态
+          </p>
+        </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -203,52 +228,77 @@ export default function ProductsPage() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-4">
         {products.map(product => (
-          <Card key={product.id}>
-            {product.image_url && (
-              <div className="aspect-video w-full overflow-hidden rounded-t-lg">
+          <Card key={product.id} className="relative">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2">
+                    {product.name}
+                    <Badge
+                      variant={product.is_active ? 'default' : 'secondary'}
+                    >
+                      {product.is_active ? '营销中' : '已暂停'}
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="max-w-2xl">
+                    {product.description}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={product.is_active}
+                    onCheckedChange={() =>
+                      handleToggleStatus(product.id, product.is_active)
+                    }
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleEdit(product)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleDelete(product.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ExternalLink className="h-4 w-4" />
+                <a
+                  href={product.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  {product.url}
+                </a>
+              </div>
+              {product.image_url && (
                 <img
                   src={product.image_url}
                   alt={product.name}
-                  className="h-full w-full object-cover"
+                  className="mt-4 h-32 w-auto object-cover rounded-md"
                 />
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle>{product.name}</CardTitle>
-              <CardDescription className="line-clamp-2">
-                {product.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <a
-                href={product.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-500 hover:underline truncate block"
-              >
-                {product.url}
-              </a>
+              )}
             </CardContent>
-            <CardFooter className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEdit(product)}
-              >
-                编辑
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDelete(product.id)}
-              >
-                删除
-              </Button>
-            </CardFooter>
           </Card>
         ))}
+
+        {products.length === 0 && (
+          <Card className="p-8 text-center text-muted-foreground">
+            <p>还没有添加任何产品</p>
+            <p className="text-sm mt-1">点击上方按钮添加你的第一个产品</p>
+          </Card>
+        )}
       </div>
     </div>
   )
