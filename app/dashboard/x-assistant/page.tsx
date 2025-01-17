@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Settings, Trash2 } from 'lucide-react'
+import { Plus, Settings, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -17,18 +17,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Assistant {
   id: string
   name: string
-  modes: {
-    growth: boolean
-    promotion: boolean
-  }
-  growth_weight: number
+  product_id?: string
   settings: {
     replyInterval: {
       min: number
@@ -44,34 +47,29 @@ interface Assistant {
       end: number
     }
     keywords: string[]
-    templates: string[]
+    template: string
   }
-  products: Array<{
-    id: string
-    weight: number
-    include_link: boolean
-  }>
+}
+
+interface Product {
+  id: string
+  name: string
+  description: string
+  url: string
 }
 
 interface FormData {
   name: string
-  modes: {
-    growth: boolean
-    promotion: boolean
-  }
-  growth_weight: number
+  product_id?: string
   settings: {
     replyInterval: {
       min: number
       max: number
     }
     requireConfirmation: boolean
+    keywords: string[]
+    template: string
   }
-  products: Array<{
-    id: string
-    weight: number
-    include_link: boolean
-  }>
 }
 
 export default function XAssistantPage() {
@@ -79,22 +77,19 @@ export default function XAssistantPage() {
   const [currentAssistant, setCurrentAssistant] = useState<string>('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [newKeyword, setNewKeyword] = useState('')
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    modes: {
-      growth: false,
-      promotion: false,
-    },
-    growth_weight: 50,
     settings: {
       replyInterval: {
         min: 30,
         max: 180,
       },
       requireConfirmation: true,
+      keywords: [],
+      template: '',
     },
-    products: [],
   })
 
   useEffect(() => {
@@ -145,16 +140,12 @@ export default function XAssistantPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          modes: formData.modes,
-          growth_weight: formData.growth_weight,
+          product_id: formData.product_id,
           settings: {
             ...formData.settings,
             dailyLimit: { min: 10, max: 50 },
             workingHours: { start: 9, end: 18 },
-            keywords: [],
-            templates: [],
           },
-          products: formData.products,
         }),
       })
 
@@ -164,19 +155,15 @@ export default function XAssistantPage() {
       setIsDialogOpen(false)
       setFormData({
         name: '',
-        modes: {
-          growth: false,
-          promotion: false,
-        },
-        growth_weight: 50,
         settings: {
           replyInterval: {
             min: 30,
             max: 180,
           },
           requireConfirmation: true,
+          keywords: [],
+          template: '',
         },
-        products: [],
       })
       loadAssistants()
     } catch (error) {
@@ -192,13 +179,21 @@ export default function XAssistantPage() {
     data: Partial<Assistant>
   ) => {
     try {
+      console.log('Updating assistant:', id, 'with data:', data)
       const response = await fetch(`/api/assistants/x/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
 
-      if (!response.ok) throw new Error('Failed to update')
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Update failed:', errorData)
+        throw new Error('Failed to update')
+      }
+
+      const updatedData = await response.json()
+      console.log('Update successful:', updatedData)
 
       toast.success('设置已更新')
       loadAssistants()
@@ -227,41 +222,6 @@ export default function XAssistantPage() {
       console.error('Error:', error)
       toast.error('删除失败')
     }
-  }
-
-  const handleUpdateProductWeight = async (
-    assistantId: string,
-    productId: string,
-    weight: number,
-    assistant: Assistant,
-    includeLink?: boolean
-  ) => {
-    const updatedProducts =
-      assistant.products?.map(p =>
-        p.id === productId
-          ? { ...p, weight, include_link: includeLink ?? p.include_link }
-          : p
-      ) || []
-
-    // 如果产品不存在，添加新产品
-    if (!assistant.products?.find(p => p.id === productId)) {
-      updatedProducts.push({
-        id: productId,
-        weight,
-        include_link: includeLink ?? false,
-      })
-    }
-
-    // 计算总权重并调整
-    const totalWeight = updatedProducts.reduce((sum, p) => sum + p.weight, 0)
-    if (totalWeight > 100) {
-      const factor = 100 / totalWeight
-      updatedProducts.forEach(p => {
-        p.weight = Math.round(p.weight * factor)
-      })
-    }
-
-    await handleUpdateAssistant(assistantId, { products: updatedProducts })
   }
 
   return (
@@ -308,139 +268,40 @@ export default function XAssistantPage() {
           {assistants.map(assistant => (
             <TabsContent key={assistant.id} value={assistant.id}>
               <div className="grid gap-6">
+                {/* 基本信息 */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>行为模式</CardTitle>
+                    <CardTitle>基本设置</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex gap-4">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={assistant.modes.growth}
-                          onCheckedChange={checked =>
-                            handleUpdateAssistant(assistant.id, {
-                              modes: {
-                                ...assistant.modes,
-                                growth: checked as boolean,
-                              },
-                            })
-                          }
-                        />
-                        <label>养号模式</label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={assistant.modes.promotion}
-                          onCheckedChange={checked =>
-                            handleUpdateAssistant(assistant.id, {
-                              modes: {
-                                ...assistant.modes,
-                                promotion: checked as boolean,
-                              },
-                            })
-                          }
-                        />
-                        <label>营销模式</label>
-                      </div>
-                    </div>
-
-                    {assistant.modes.growth && assistant.modes.promotion && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">模式权重</label>
-                        <Slider
-                          min={0}
-                          max={100}
-                          step={10}
-                          value={[assistant.growth_weight]}
-                          onValueChange={([value]) =>
-                            handleUpdateAssistant(assistant.id, {
-                              growth_weight: value,
-                            })
-                          }
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>养号 {assistant.growth_weight}%</span>
-                          <span>营销 {100 - assistant.growth_weight}%</span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {assistant.modes.promotion && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>产品配置</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {products.map(product => (
-                        <div key={product.id} className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium">
-                              {product.name}
-                            </label>
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={
-                                    assistant.products.find(
-                                      p => p.id === product.id
-                                    )?.include_link || false
-                                  }
-                                  onCheckedChange={checked =>
-                                    handleUpdateProductWeight(
-                                      assistant.id,
-                                      product.id,
-                                      assistant.products.find(
-                                        p => p.id === product.id
-                                      )?.weight || 0,
-                                      assistant,
-                                      checked
-                                    )
-                                  }
-                                />
-                                <Label className="text-sm">包含链接</Label>
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                {assistant.products.find(
-                                  p => p.id === product.id
-                                )?.weight || 0}
-                                %
-                              </span>
-                            </div>
-                          </div>
-                          <Slider
-                            min={0}
-                            max={100}
-                            step={10}
-                            value={[
-                              assistant.products.find(p => p.id === product.id)
-                                ?.weight || 0,
-                            ]}
-                            onValueChange={([value]) =>
-                              handleUpdateProductWeight(
-                                assistant.id,
-                                product.id,
-                                value,
-                                assistant,
-                                assistant.products.find(
-                                  p => p.id === product.id
-                                )?.include_link || false
-                              )
-                            }
-                          />
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>回复设置</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-4">
                     <div className="grid gap-4">
+                      <div>
+                        <Label>关联产品（可选）</Label>
+                        <Select
+                          value={assistant.product_id || 'none'}
+                          onValueChange={value => {
+                            console.log('Selected product:', value)
+                            const product_id =
+                              value === 'none' ? undefined : value
+                            console.log('Updating product_id to:', product_id)
+                            handleUpdateAssistant(assistant.id, {
+                              product_id: product_id,
+                            })
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="选择要关联的产品" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">不关联产品</SelectItem>
+                            {products.map(product => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="flex items-center justify-between">
                         <Label>手动确认</Label>
                         <div className="flex items-center gap-2">
@@ -458,7 +319,119 @@ export default function XAssistantPage() {
                           <Label className="text-sm">需要手动确认回复</Label>
                         </div>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
+                {/* 关键词监控 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>关键词监控</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="输入要监控的关键词，按回车添加每个关键词"
+                        value={newKeyword}
+                        onChange={e => setNewKeyword(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && newKeyword.trim()) {
+                            const keywords = assistant.settings.keywords || []
+                            handleUpdateAssistant(assistant.id, {
+                              settings: {
+                                ...assistant.settings,
+                                keywords: [...keywords, newKeyword.trim()],
+                              },
+                            })
+                            setNewKeyword('')
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newKeyword.trim()) {
+                            const keywords = assistant.settings.keywords || []
+                            handleUpdateAssistant(assistant.id, {
+                              settings: {
+                                ...assistant.settings,
+                                keywords: [...keywords, newKeyword.trim()],
+                              },
+                            })
+                            setNewKeyword('')
+                          }
+                        }}
+                      >
+                        添加
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {assistant.settings.keywords?.map((keyword, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {keyword}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => {
+                              const keywords = [...assistant.settings.keywords]
+                              keywords.splice(index, 1)
+                              handleUpdateAssistant(assistant.id, {
+                                settings: {
+                                  ...assistant.settings,
+                                  keywords,
+                                },
+                              })
+                            }}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 回复模板 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>回复模板</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      可用变量：{'{ai_reply}'} - AI生成的回复，
+                      {assistant.product_id && (
+                        <>
+                          {'{product_name}'} - 产品名称，
+                          {'{product_description}'} - 产品描述，
+                          {'{product_url}'} - 产品URL，
+                        </>
+                      )}
+                      {'{username}'} - 被回复用户的Twitter用户名
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="输入回复模板"
+                        value={assistant.settings.template}
+                        onChange={e =>
+                          handleUpdateAssistant(assistant.id, {
+                            settings: {
+                              ...assistant.settings,
+                              template: e.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 回复设置 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>回复设置</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4">
                       <Label>回复间隔（秒）</Label>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -510,7 +483,7 @@ export default function XAssistantPage() {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>创建新助手</DialogTitle>
             <DialogDescription>配置你的新助手</DialogDescription>
@@ -520,7 +493,7 @@ export default function XAssistantPage() {
               <Label htmlFor="name">助手名称</Label>
               <Input
                 id="name"
-                value={formData?.name || ''}
+                value={formData.name}
                 onChange={e =>
                   setFormData(prev => ({ ...prev, name: e.target.value }))
                 }
@@ -528,219 +501,52 @@ export default function XAssistantPage() {
               />
             </div>
 
-            <div className="grid gap-4">
-              <Label>行为模式</Label>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={formData?.modes?.growth || false}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({
-                        ...prev,
-                        modes: { ...prev.modes, growth: checked as boolean },
-                      }))
-                    }
-                  />
-                  <label>养号模式</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={formData?.modes?.promotion || false}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({
-                        ...prev,
-                        modes: { ...prev.modes, promotion: checked as boolean },
-                      }))
-                    }
-                  />
-                  <label>营销模式</label>
-                </div>
-              </div>
-            </div>
-
-            {formData?.modes?.growth && formData?.modes?.promotion && (
-              <div className="space-y-2">
-                <Label>模式权重</Label>
-                <Slider
-                  min={0}
-                  max={100}
-                  step={10}
-                  value={[formData.growth_weight]}
-                  onValueChange={([value]) => {
-                    if (typeof value !== 'number') return
-                    setFormData(prev => ({ ...prev, growth_weight: value }))
-                  }}
-                />
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>养号 {formData.growth_weight}%</span>
-                  <span>营销 {100 - formData.growth_weight}%</span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid gap-4">
-              <div className="flex items-center justify-between">
-                <Label>手动确认</Label>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={formData.settings.requireConfirmation}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          requireConfirmation: checked,
-                        },
-                      }))
-                    }
-                  />
-                  <Label className="text-sm">需要手动确认回复</Label>
-                </div>
-              </div>
-
-              <Label>回复间隔（秒）</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm">最小间隔</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={formData.settings.replyInterval.min}
-                    onChange={e =>
-                      setFormData(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          replyInterval: {
-                            ...prev.settings.replyInterval,
-                            min: parseInt(e.target.value),
-                          },
-                        },
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">最大间隔</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={formData.settings.replyInterval.max}
-                    onChange={e =>
-                      setFormData(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          replyInterval: {
-                            ...prev.settings.replyInterval,
-                            max: parseInt(e.target.value),
-                          },
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            {formData?.modes?.promotion && (
-              <div className="grid gap-4">
-                <Label>产品配置</Label>
-                <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>关联产品（可选）</Label>
+              <Select
+                value={formData.product_id || 'none'}
+                onValueChange={value => {
+                  console.log('Form selected product:', value)
+                  const product_id = value === 'none' ? undefined : value
+                  console.log('Setting form product_id to:', product_id)
+                  setFormData(prev => ({
+                    ...prev,
+                    product_id: product_id,
+                  }))
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择要关联的产品" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">不关联产品</SelectItem>
                   {products.map(product => (
-                    <div key={product.id} className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <label className="text-sm font-medium">
-                          {product.name}
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={
-                                formData.products.find(p => p.id === product.id)
-                                  ?.include_link || false
-                              }
-                              onCheckedChange={checked => {
-                                const updatedProducts = [...formData.products]
-                                const productIndex = updatedProducts.findIndex(
-                                  p => p.id === product.id
-                                )
-
-                                if (productIndex === -1) {
-                                  updatedProducts.push({
-                                    id: product.id,
-                                    weight: 0,
-                                    include_link: checked,
-                                  })
-                                } else {
-                                  updatedProducts[productIndex].include_link =
-                                    checked
-                                }
-
-                                setFormData(prev => ({
-                                  ...prev,
-                                  products: updatedProducts,
-                                }))
-                              }}
-                            />
-                            <Label className="text-sm">包含链接</Label>
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {formData.products.find(p => p.id === product.id)
-                              ?.weight || 0}
-                            %
-                          </span>
-                        </div>
-                      </div>
-                      <Slider
-                        min={0}
-                        max={100}
-                        step={10}
-                        value={[
-                          formData.products.find(p => p.id === product.id)
-                            ?.weight || 0,
-                        ]}
-                        onValueChange={([value]) => {
-                          if (typeof value !== 'number') return
-
-                          const updatedProducts = [...formData.products]
-                          const productIndex = updatedProducts.findIndex(
-                            p => p.id === product.id
-                          )
-
-                          if (productIndex === -1) {
-                            updatedProducts.push({
-                              id: product.id,
-                              weight: value,
-                              include_link: false,
-                            })
-                          } else {
-                            updatedProducts[productIndex].weight = value
-                          }
-
-                          // 调整权重总和为100%
-                          const totalWeight = updatedProducts.reduce(
-                            (sum, p) => sum + p.weight,
-                            0
-                          )
-                          if (totalWeight > 100) {
-                            const factor = 100 / totalWeight
-                            updatedProducts.forEach(p => {
-                              p.weight = Math.round(p.weight * factor)
-                            })
-                          }
-
-                          setFormData(prev => ({
-                            ...prev,
-                            products: updatedProducts,
-                          }))
-                        }}
-                      />
-                    </div>
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name}
+                    </SelectItem>
                   ))}
-                </div>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label>手动确认</Label>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={formData.settings.requireConfirmation}
+                  onCheckedChange={checked =>
+                    setFormData(prev => ({
+                      ...prev,
+                      settings: {
+                        ...prev.settings,
+                        requireConfirmation: checked,
+                      },
+                    }))
+                  }
+                />
+                <Label className="text-sm">需要手动确认回复</Label>
               </div>
-            )}
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={handleAddAssistant} disabled={isLoading}>
